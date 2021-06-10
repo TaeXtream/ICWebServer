@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <string>
-//#include <cstring>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
