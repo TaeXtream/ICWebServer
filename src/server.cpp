@@ -54,13 +54,13 @@ char* reponseRequest(char* buf, int numberStatus, char* status, unsigned long pa
     return buf;
 }
 
-char* errorRequest(char *buf, int numberStatus, char* status){
+char* errorRequest(char *buf, int numberStatus, char* status)
+{
     sprintf(buf,
         "HTTP/1.1 %d %s\r\n"
         "Server: ICWS\r\n"
         "Connection: close\r\n",
-        numberStatus, status
-    );
+        numberStatus, status);
     return buf;
 }
 
@@ -81,7 +81,8 @@ void serve_http(int connFd, char *rootFolder)
     struct stat stats;
 
     int inputFd = open(url, O_RDONLY);
-    if (inputFd < 0){
+    if (inputFd < 0)
+    {
         printf("input failed\n");
         errorRequest(buf, 404, "Not Found");
         write_all(connFd, buf, strlen(buf));
@@ -89,22 +90,27 @@ void serve_http(int connFd, char *rootFolder)
     }
     mimeFlag = strrchr(url, '.');
     mimeFlag++;
-    if (strcasecmp(request->http_method, "GET") == 0){
-        if(stat(url, &stats) >= 0){
+    if (strcasecmp(request->http_method, "GET") == 0)
+    {
+        if(stat(url, &stats) >= 0)
+        {
             mimeType = "";
             mimeType = getMIME(mimeFlag);
             reponseRequest(buf, 200, "OK", stats.st_size, (char*) mimeType.c_str());
             printf("buf = %s\n",buf);
             write_all(connFd, buf, strlen(buf));
             ssize_t numRead;
-            while ((numRead = read(inputFd, buf, MAXBUF)) > 0) {
+            while ((numRead = read(inputFd, buf, MAXBUF)) > 0)
+            {
                 write_all(connFd, buf, numRead);
             }
         }
         close(inputFd);
     }
-    else if(strcasecmp(request->http_method, "HEAD") == 0){
-        if(stat(url, &stats) >= 0){
+    else if(strcasecmp(request->http_method, "HEAD") == 0)
+    {
+        if(stat(url, &stats) >= 0)
+        {
             mimeType = "";
             mimeType = getMIME(mimeFlag);
             reponseRequest(buf, 200, "OK", stats.st_size, (char*) mimeType.c_str());
@@ -112,7 +118,8 @@ void serve_http(int connFd, char *rootFolder)
         }
         close(inputFd);
     }
-    else {
+    else 
+    {
         errorRequest(buf, 501, "Unknown Method");
         write_all(connFd, buf, strlen(buf));
         close(inputFd);
