@@ -27,6 +27,13 @@ string port;
 string rootDir;
 typedef struct sockaddr SA;
 
+struct concurrentBag 
+{
+    struct sockaddr_storage clientAddr;
+    int connFd;
+    char *rootFolder;
+};
+
 string getMIME(string string)
 {
     if (string == "html") return "text/html";
@@ -50,7 +57,6 @@ char* reponseRequest(char* buf, int numberStatus, char* status, unsigned long pa
             "Content-length: %lu\r\n"
             "Content-type: %s\r\n\r\n",
             numberStatus, status, packetSize, mime);
-    
     return buf;
 }
 
@@ -71,7 +77,14 @@ void serve_http(int connFd, char *rootFolder)
 
     int readRequest = read(connFd, buf, MAXBUF);
 
+    int defout = dup(1);
+    freopen("/dev/null", "w", stdout);
+
     Request *request = parse(buf,readRequest,connFd);
+
+    fflush(stdout);
+    dup2(defout, 1);
+    close(defout);
 
     char url[255];
     strcpy(url, rootFolder);
@@ -128,16 +141,34 @@ void serve_http(int connFd, char *rootFolder)
     free(request);
 }
 
-int runServer() 
+void* conn_handler(void *args) 
+{
+    struct concurrentBag* context = (struct concurrentBag*) args;
+    
+    pthread_detach(pthread_self());
+    serve_http(context->connFd, context->rootFolder);
+    close(context->connFd);
+    
+    free(context);
+    return NULL;
+}
+
+int runServer(string port, string rootDir) 
 {
     int listenFd = open_listenfd((char*) port.c_str());
     while (true) 
     {
         struct sockaddr_storage clientAddr;
         socklen_t clientLen = sizeof(struct sockaddr_storage);
+        pthread_t threadInfo;
 
         int connFd = accept(listenFd, (SA *) &clientAddr, &clientLen);
         if (connFd < 0) { fprintf(stderr, "Failed to accept\n"); continue; }
+
+        struct concurrentBag *context = (struct concurrentBag *) malloc(sizeof(struct concurrentBag));
+
+        context->connFd = connFd;
+        context->rootFolder = (char*) rootDir.c_str();
 
         char hostBuf[MAXBUF], svcBuf[MAXBUF];
         if (getnameinfo((SA *) &clientAddr, clientLen, 
@@ -146,8 +177,8 @@ int runServer()
         else
             printf("Connection from ?UNKNOWN?\n");
                 
-        serve_http(connFd, (char*) rootDir.c_str());
-        close(connFd);
+        memcpy(&context->clientAddr, &clientAddr, sizeof(struct sockaddr_storage));
+        pthread_create(&threadInfo, NULL, conn_handler, (void *) context);
     }
 }
 
@@ -168,10 +199,5 @@ int main(int argc, char **argv)
         cout << "invalid port command: try to use --port" << endl;
         return EXIT_FAILURE;
     }
-    else
-    {
-        port = string(argv[2]);
-        rootDir = string(argv[4]);
-    }
-    runServer();
+    runServer(string(argv[2]), string(argv[4]));
 }
