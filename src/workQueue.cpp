@@ -1,22 +1,17 @@
-#include "workQueue.h"
+#include <deque>
+#include <pthread.h>
+#include <sys/socket.h>
 
-struct concurrentBag 
-{
-    int connFd;
-    int listenFd;
-};
+using namespace std;
 
 class workQueue
 {
     private:
-        deque<int> jobsQueue;
+        deque<long> jobsQueue;
         pthread_mutex_t jobsMutex;
 
     public:
-        deque<int> getJobsQueue() {return this->jobsQueue;}
-        pthread_mutex_t getJobsMutex() {return this->jobsMutex;}
-
-        int addJob(int num) 
+        int addJob(long num) 
         {
             pthread_mutex_lock(&this->jobsMutex);
             this->jobsQueue.push_back(num);
@@ -25,7 +20,7 @@ class workQueue
             return len;
         }
 
-        bool removeJob(int *job) 
+        bool removeJob(long *job) 
         {
             pthread_mutex_lock(&this->jobsMutex);
             bool success = !this->jobsQueue.empty();
