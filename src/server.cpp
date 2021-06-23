@@ -10,11 +10,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <ctime>
 #include <pthread.h>
 #include <thread>
 #include <mutex>
-#include <condition_variable>
+#include <chrono>
 #include "workQueue.cpp"
 extern "C"
 {
@@ -22,8 +21,8 @@ extern "C"
     #include "pcsa_net.h"
 }
 
-#define MAXBUF 2048
-#define BUFSIZE 8192
+#define MAXBUF 8192
+
 
 using namespace std;
 
@@ -33,7 +32,6 @@ typedef struct sockaddr SA;
 int num_threads;
 int timeout;
 mutex serverMtx;
-condition_variable cv;
 workQueue workQ;
 
 // struct concurrentBag 
@@ -57,17 +55,36 @@ string getMIME(string string)
     return "";
 }
 
+static const char* DAY_NAMES[] = {
+    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+};
+
+static const char* MONTH_NAMES[] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
+string currentDate()
+{
+    time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+
+    char buf[100] = {0};
+    strftime(buf, sizeof(buf), "%Y-%m-%d", localtime(&now));
+    return buf;
+}
+
 
 char* reponseRequest(char* buf, int numberStatus, char* status, unsigned long packetSize, char* mime)
 {
-    //char* date = getDate(); //TODO implement date time function
+    string time = currentDate();
     sprintf(buf,
             "HTTP/1.1 %d %s\r\n"
             "Server: ICWS\r\n"
+            "Date: %s\r\n"
             "Connection: connected\r\n"
             "Content-length: %lu\r\n"
-            "Content-type: %s\r\n",
-            numberStatus, status, packetSize, mime);
+            "Content-type: %s\r\n\r\n", // This Line White Screen Problem
+            numberStatus, status, time.c_str() ,packetSize, mime);
     return buf;
 }
 
@@ -76,7 +93,7 @@ char* errorRequest(char *buf, int numberStatus, char* status)
     sprintf(buf,
         "HTTP/1.1 %d %s\r\n"
         "Server: ICWS\r\n"
-        "Connection: close\r\n",
+        "Connection: close\r\n\r\n",
         numberStatus, status);
     return buf;
 }
@@ -84,9 +101,9 @@ char* errorRequest(char *buf, int numberStatus, char* status)
 
 void serve_http(int connFd, char *rootFolder)
 {
-    char buf[BUFSIZE];
+    char buf[MAXBUF];
 
-    int readRequest = read(connFd, buf, BUFSIZE);
+    int readRequest = read(connFd, buf, MAXBUF);
 
     int defout = dup(1);
     freopen("/dev/null", "w", stdout);
@@ -175,7 +192,7 @@ void serve_http(int connFd, char *rootFolder)
 void do_Work() {
     for (;;)
     {
-        long w;
+        int w;
         if (workQ.removeJob(&w)) 
         {
             if (w < 0) break;

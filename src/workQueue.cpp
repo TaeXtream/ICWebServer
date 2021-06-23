@@ -7,11 +7,11 @@ using namespace std;
 class workQueue
 {
     private:
-        deque<long> jobsQueue;
+        deque<int> jobsQueue;
         pthread_mutex_t jobsMutex;
 
     public:
-        int addJob(long num) 
+        int addJob(int num) 
         {
             pthread_mutex_lock(&this->jobsMutex);
             this->jobsQueue.push_back(num);
@@ -20,7 +20,7 @@ class workQueue
             return len;
         }
 
-        bool removeJob(long *job) 
+        bool removeJob(int *job) 
         {
             pthread_mutex_lock(&this->jobsMutex);
             bool success = !this->jobsQueue.empty();
