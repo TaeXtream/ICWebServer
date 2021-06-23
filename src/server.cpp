@@ -55,14 +55,6 @@ string getMIME(string string)
     return "";
 }
 
-static const char* DAY_NAMES[] = {
-    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
-};
-
-static const char* MONTH_NAMES[] = {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-};
 
 string currentDate()
 {
