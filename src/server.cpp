@@ -75,7 +75,7 @@ char* reponseRequest(char* buf, int numberStatus, char* status, unsigned long pa
             "HTTP/1.1 %d %s\r\n"
             "Server: ICWS\r\n"
             "Date: %s\r\n"
-            "Connection: connected\r\n"
+            "Connection: keep-alive\r\n"
             "Content-length: %lu\r\n"
             "Content-type: %s\r\n\r\n", // This Line White Screen Problem
             numberStatus, status, time.c_str() ,packetSize, mime);
@@ -98,28 +98,31 @@ void serve_http(int connFd, char *rootFolder)
     char buf[MAXBUF];
     char minibuf[MINBUF];
     struct pollfd fds[1];
-    fds[0].fd = connFd;
-    fds[0].events = POLLIN;
-    int pollret = poll(fds, 1, timeout * 1000);
     int readRequest;
     int numRead;
-    if (pollret == -1)
+
+    while(true)
     {
-        perror("poll() error");
-        exit(EXIT_FAILURE);
-    }
-    if (!pollret)
-    {
-        printf("Timeout\n");
-        char* msg = strdup("Request Timeout");
-        errorRequest(buf, 409, msg);
-        write_all(connFd, buf, strlen(buf));
-        return;
-    }
-    if (fds[0].revents & POLLIN)
-    {
-        while((numRead = read(connFd, minibuf, MINBUF)) > 0 )
+        fds[0].fd = connFd;
+        fds[0].events = POLLIN;
+        int pollret = poll(fds, 1, timeout * 1000);
+
+        if (pollret == -1)
         {
+            perror("poll() error");
+            exit(EXIT_FAILURE);
+        }
+        if (!pollret)
+        {
+            printf("Timeout\n");
+            char* msg = strdup("Request Timeout");
+            errorRequest(buf, 409, msg);
+            write_all(connFd, buf, strlen(buf));
+            return;
+        }
+        if ((fds[0].fd == connFd) && (fds[0].revents == POLLIN))
+        {
+            numRead = read(connFd, minibuf, MINBUF);
             readRequest += numRead;
             if (readRequest > MAXBUF)
             {
@@ -133,7 +136,7 @@ void serve_http(int connFd, char *rootFolder)
             if (strstr(buf, "\r\n\r\n") != NULL) break;
         }
     }
-
+    
     int defout = dup(1);
     freopen("/dev/null", "w", stdout);
 
