@@ -13,7 +13,8 @@
 #include <pthread.h>
 #include <thread>
 #include <mutex>
-#include <chrono>
+#include <poll.h>
+#include <ctime>
 #include "workQueue.cpp"
 extern "C"
 {
@@ -22,6 +23,7 @@ extern "C"
 }
 
 #define MAXBUF 8192
+#define MINBUF 2048
 
 
 using namespace std;
@@ -94,20 +96,56 @@ char* errorRequest(char *buf, int numberStatus, char* status)
 void serve_http(int connFd, char *rootFolder)
 {
     char buf[MAXBUF];
-
-    int readRequest = read(connFd, buf, MAXBUF);
+    char minibuf[MINBUF];
+    struct pollfd fds[1];
+    fds[0].fd = connFd;
+    fds[0].events = POLLIN;
+    int pollret = poll(fds, 1, timeout * 1000);
+    int readRequest;
+    int numRead;
+    if (pollret == -1)
+    {
+        perror("poll() error");
+        exit(EXIT_FAILURE);
+    }
+    if (!pollret)
+    {
+        printf("Timeout\n");
+        char* msg = strdup("Request Timeout");
+        errorRequest(buf, 409, msg);
+        write_all(connFd, buf, strlen(buf));
+        return;
+    }
+    if (fds[0].revents & POLLIN)
+    {
+        while((numRead = read(connFd, minibuf, MINBUF)) > 0 )
+        {
+            readRequest += numRead;
+            if (readRequest > MAXBUF)
+            {
+                printf("Request header too large\n");
+                char* msg = strdup("Request header too large");
+                errorRequest(buf, 400, msg);
+                write_all(connFd, buf, strlen(buf));
+                break;
+            }
+            strcat(buf, minibuf);
+            if (strstr(buf, "\r\n\r\n") != NULL) break;
+        }
+    }
 
     int defout = dup(1);
     freopen("/dev/null", "w", stdout);
 
     serverMtx.lock();
-    Request *request = parse(buf,readRequest,connFd);
+    Request *request = parse(buf ,readRequest ,connFd);
     serverMtx.unlock();
 
     fflush(stdout);
     dup2(defout, 1);
     close(defout);
-    if (request==NULL) {
+    if (request==NULL) 
+	{
         printf("NULL Request!\n"); 
         return;
     }
@@ -181,7 +219,9 @@ void serve_http(int connFd, char *rootFolder)
 //     return NULL;
 // }
 
-void do_Work() {
+void do_Work() 
+{
+
     for (;;)
     {
         int w;
