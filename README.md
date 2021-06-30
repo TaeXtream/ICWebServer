@@ -16,6 +16,10 @@ Complete
 
 Not Implement
 
+### References:
+
+Many ideas and logics are from in-class code examples. 
+
 ### Collaborator:
 
 ### Nakarin, Thomas, Pariwat, Naran and Maylin.
