@@ -1,5 +1,7 @@
 # IC Web Server
 
+By: Natdanai Angumnuaysiri 6180519
+
 Simple Web Server using C/C++.
 
 ### Milestone 1: Sequential GET/HEAD Requests for Static Content
